@@ -1,0 +1,9 @@
+{
+    "appName": "我的网站",  // 应用程序名
+    "enabled": true,       // 启用服务
+    "server": {
+        "protocols": {
+            "http": { "port": 8010 }  
+        }
+    }
+}
