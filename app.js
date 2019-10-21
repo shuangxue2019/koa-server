@@ -21,6 +21,7 @@ async function startApp (baseConfig, dir) {
 
     // 合并配置项
     config = cf.extend(config, baseConfig);
+    if(!config.enabled) return;
 
     const app = new Koa();
     const router = new Router();
