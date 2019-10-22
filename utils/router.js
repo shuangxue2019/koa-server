@@ -9,12 +9,12 @@ class Router {
         this.routers = {};
     }
 
-    async load (app) {
+    async load(app) {
         await this.readFiles(this.dir);
         this.register(app);
     }
 
-    async readFiles (dir) {
+    async readFiles(dir) {
         const thisdir = await fs.promises.opendir(dir);
         const that = this;
         for await (const dirent of thisdir) {
@@ -34,24 +34,38 @@ class Router {
         }
     }
 
-    register (app) {
+    register(app) {
         let namespaces = {};
-        for (let namespace in this.namespace) {
-            let ns = loadNamespace(namespace);
-            namespaces[ns.name] = ns.source;
+        for(let page in this.namespace){
+            let nsDic = [];
+            namespaces[page]  = nsDic;
+            (this.namespace[page] || []).forEach(item => {
+                let ns = loadNamespace(item);
+                nsDic[ns.name] = ns.source;
+            })
         }
         for (let url in this.routers) {
             let router = this.routers[url];
             const fun = async (ctx, next) => {
                 try {
-                    const res = await router.method.apply({ 
-                        ...namespaces,
+                    // 前置拦截
+                    // TODO...
+
+                    // 仅载入指定的namespace
+                    let page = url.substring(0, url.lastIndexOf('/') + 1)
+                    let ns = namespaces[page];
+                    const res = await router.method.apply({
+                        ...ns,
                         context: ctx,
                         next
-                     }, [ctx]);
+                    }, [ctx]);
                     ctx.status = 200;
+
+                    // 后置拦截
+                    // TODO...
+                    
                     ctx.res.write(JSON.stringify(res));
-                } catch(e){
+                } catch (e) {
                     ctx.status = 500;
                     ctx.res.write(`HTTP 500, ${e}`)
                 } finally {
@@ -66,23 +80,23 @@ class Router {
                     app.post(url, fun);
                     break;
                 case 'put':
-                    app.post(url, fun);
+                    app.put(url, fun);
                     break;
                 case 'delete':
-                    app.post(url, fun);
+                    app.delete(url, fun);
                     break;
                 case 'del':
-                    app.post(url, fun);
+                    app.del(url, fun);
                     break;
                 default:
-                    app.post(url, fun);
+                    app.all(url, fun);
                     break;
             }
         }
     }
 
     // 获取文件属性
-    getRouters (dir, src) {
+    getRouters(dir, src) {
         try {
             // 根名称
             const rootName = path.basename(src, '.js').toLowerCase();
@@ -94,11 +108,12 @@ class Router {
             const methods = js.methods || {};
             let that = this;
             let routers = this.routers;
+            let preLoadNS = [];
             namespace.forEach(item => {
-                if (!that.namespace[item]) {
-                    that.namespace[item] = true;
-                }
+                if (!preLoadNS.includes(item)) preLoadNS.push(item);
             });
+            // 根据文件载入对应的namespace
+            that.namespace[`/api/${rootName}/`] = preLoadNS;
             for (let method in methods) {
                 const sign = (method.match(/^([a-z]+)/g) || [])[0];
                 // 方法名
@@ -122,7 +137,7 @@ class Router {
         }
     }
 
-    getParameterName (fn) {
+    getParameterName(fn) {
         if (typeof fn !== 'object' && typeof fn !== 'function') return;
         const COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
         const DEFAULT_PARAMS = /=[^,)]+/mg;

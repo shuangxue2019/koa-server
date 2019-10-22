@@ -21,6 +21,7 @@ async function startApp (baseConfig, dir) {
 
     // 合并配置项
     config = cf.extend(config, baseConfig);
+    if(!config.enabled) return;
 
     const app = new Koa();
     const router = new Router();
@@ -29,13 +30,6 @@ async function startApp (baseConfig, dir) {
     const crouter = new cRouter.Router(path.join(dir, config.web.apiDir));
     await crouter.load(router);
 
-    // let an = async(ctx, next)=>{
-    //     ctx.response.body = '<h1>首页</h1>'
-    // }
-    // router.get("/test", an)
-    // router.get("/test", async(ctx, next)=>{
-    //     ctx.response.body = '<h1>测试页</h1>'
-    // })
     app.use(router.routes());
     app.use(KoaStatic(path.join(__dirname, dir, config.web.public)))
 
