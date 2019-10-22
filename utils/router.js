@@ -80,16 +80,16 @@ class Router {
                     app.post(url, fun);
                     break;
                 case 'put':
-                    app.post(url, fun);
+                    app.put(url, fun);
                     break;
                 case 'delete':
-                    app.post(url, fun);
+                    app.delete(url, fun);
                     break;
                 case 'del':
-                    app.post(url, fun);
+                    app.del(url, fun);
                     break;
                 default:
-                    app.post(url, fun);
+                    app.all(url, fun);
                     break;
             }
         }
