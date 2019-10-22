@@ -1,3 +1,5 @@
+const path = require('path');
+
 /**
  * 载入namespace
  * @ 前缀来表示载入node_modules资源
@@ -48,6 +50,29 @@ const loadNamespace = (src) => {
     return res;
 }
 
+// 获取基类
+const getParent = function(rootSrc, parentSrc){
+    if(!parentSrc) return {};
+    let dir = path.dirname(rootSrc)
+    let src = path.join(dir, parentSrc);
+    let js = require(src); 
+    let methods = {};
+
+    for(let name in js.methods){
+        if(name[0] === '_') continue;
+        methods[name] = js.methods[name];
+    }
+    let parent = {
+        data: js.data || {},
+        ...methods,
+        parent: getParent(parentSrc, js.extend),
+        beforeAction: js.beforeAction || function(){},
+        afterAction: js.afterAction || function(){}
+    }  
+
+    return parent;
+}
+
 // 载入js程序到路由
 const loadjs = (path) => {
     // 读取js
@@ -62,5 +87,6 @@ const loadjs = (path) => {
 
 module.exports = {
     loadNamespace,
-    loadjs
+    loadjs,
+    getParent
 }

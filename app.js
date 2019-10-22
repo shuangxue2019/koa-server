@@ -5,6 +5,7 @@ const path = require('path');
 const Koa = require('koa');
 const Router = require('koa-router');
 const KoaStatic = require('koa-static');
+const session = require('koa-session');
 const cf = require('./utils/config');
 const cRouter = require('./utils/router');
 
@@ -25,6 +26,12 @@ async function startApp (baseConfig, dir) {
 
     const app = new Koa();
     const router = new Router();
+
+    app.keys = config.appKey;
+
+    if(config.server.session.enabled){
+        app.use(session(config.server.session.config, app));
+    }
 
     // 读取路由配置
     const crouter = new cRouter.Router(path.join(dir, config.web.apiDir));

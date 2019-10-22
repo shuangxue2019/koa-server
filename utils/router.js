@@ -1,12 +1,13 @@
 const path = require('path');
 const fs = require('fs');
-const { loadNamespace } = require('./core');
+const { loadNamespace, getParent } = require('./core');
 
 class Router {
     constructor(dir) {
         this.dir = dir;
         this.namespace = {};
         this.routers = {};
+        this.obj = {};
     }
 
     async load(app) {
@@ -36,9 +37,10 @@ class Router {
 
     register(app) {
         let namespaces = {};
-        for(let page in this.namespace){
+        let that = this;
+        for (let page in this.namespace) {
             let nsDic = [];
-            namespaces[page]  = nsDic;
+            namespaces[page] = nsDic;
             (this.namespace[page] || []).forEach(item => {
                 let ns = loadNamespace(item);
                 nsDic[ns.name] = ns.source;
@@ -47,31 +49,63 @@ class Router {
         for (let url in this.routers) {
             let router = this.routers[url];
             const fun = async (ctx, next) => {
+                ctx.type = 'application/json; charset=utf-8';
                 try {
-                    // 前置拦截
-                    // TODO...
-
-                    // 仅载入指定的namespace
                     let page = url.substring(0, url.lastIndexOf('/') + 1)
+                    let obj = that.obj[page] || {};
+                    let parent = obj.parent;
+                    // 仅载入指定的namespace
                     let ns = namespaces[page];
-                    const res = await router.method.apply({
+                    let thatObj = {
+                        ...this,
                         ...ns,
+                        ...obj,
                         context: ctx,
-                        next
-                    }, [ctx]);
+                        next,
+                        parent
+                    };
+                    // 前置拦截
+                    let res = {};
+                    if(obj.beforeAction){
+                        let _r = obj.beforeAction.apply({
+                            ...thatObj,
+                            base: parent ? parent.beforeAction : function(){}
+                        }, [ctx, next]); 
+
+                        // 拦截
+                        if(!_r){
+                            res = ctx.result === undefined ? {} : ctx.result;
+                            ctx.res.body = res
+                            return;
+                        }
+                    }                   
+
+                    res = await router.method.apply({
+                        ...thatObj,
+                        base: parent ? parent[router.actualName] : function () { }
+                    }, [ctx, next]);
                     ctx.status = 200;
 
                     // 后置拦截
-                    // TODO...
-                    
-                    ctx.res.write(JSON.stringify(res));
+                    if(obj.afterAction){
+                        obj.afterAction.apply({
+                            ...thatObj,
+                            base: parent ? parent.afterAction : function(){}
+                        }, [ctx, next]); 
+
+                        if(ctx.result !== undefined){
+                            res = ctx.result;
+                        }
+                    }
+
+                    ctx.res.body = res;
                 } catch (e) {
                     ctx.status = 500;
-                    ctx.res.write(`HTTP 500, ${e}`)
+                    ctx.res.body = `HTTP 500, ${e}`;
                 } finally {
-                    ctx.res.end();
                 }
             };
+
             switch (router.type) {
                 case 'get':
                     app.get(url, fun);
@@ -95,13 +129,15 @@ class Router {
         }
     }
 
-    // 获取文件属性
+    // 获取文件信息
     getRouters(dir, src) {
         try {
             // 根名称
             const rootName = path.basename(src, '.js').toLowerCase();
             // js代码
             const js = require(`../${src}`);
+            const parent = getParent(`../${src}`, js.extend);
+            if (js.hidden) return;
             // 命名空间
             const namespace = js.namespace || [];
             // 方法
@@ -114,7 +150,18 @@ class Router {
             });
             // 根据文件载入对应的namespace
             that.namespace[`/api/${rootName}/`] = preLoadNS;
+            that.obj[`/api/${rootName}/`] = {
+                data: js.data || {},
+                ...js.methods,
+                parent,
+                beforeAction: js.beforeAction,
+                afterAction: js.afterAction
+            }
             for (let method in methods) {
+                if (method[0] == '_') {
+                    // 私有方法
+                    continue;
+                }
                 const sign = (method.match(/^([a-z]+)/g) || [])[0];
                 // 方法名
                 const funcName = method.substring((sign || '').length).toLowerCase();
@@ -123,7 +170,8 @@ class Router {
                 let property = {
                     type: sign,
                     method: func,
-                    name: funcName
+                    name: funcName,
+                    actualName: method
                 };
 
                 if (routers[routerUrl]) {
