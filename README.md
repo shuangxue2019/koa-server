@@ -11,20 +11,20 @@ npm run dev // 启动项目
 
 ``` javascript
 -apps
-    |
-    -web |
-    -api |
-    -public |
-    -config.json |
-    -config.json -
-    utils |
-    -api |
-    -config.js |
-    -core.js |
-    -object - handle.js |
-    -router.js -
-    app.js -
-    package.json
+  |-web 
+    |-api 
+    |-public 
+    |-config.json 
+  |-config.json 
+-utils 
+  |-api 
+  |-config.js 
+  |-core.js 
+  |-object.js
+  |-handle.js 
+  |-router.js 
+-app.js 
+-package.json
 ```
 
 #### apps 应用程序目录
@@ -73,9 +73,9 @@ npm run dev // 启动项目
 
 ``` javascript
 url地址为： protocol: //webserverAddress/api/{apiDir下的文件或目录}/{js文件中的方法名}
-    如： 在apiDir下的文件结构为users / list.js
+如： 在apiDir下的文件结构为users/list.js
 其中list.js中有一个getGet的方法
-那么生成的url地址为： localhost: 8000 / api / users / list / get
+那么生成的url地址为：localhost:8000/api/users/list/get
 请求方式为get
 ```
 
